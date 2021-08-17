@@ -66,7 +66,9 @@ class ParseExcel extends Command
                 $currentClient = $charge;
                 // create a new client row with values if not exists
                 if (!isset($data[$currentClient])) {
-                    $data[$currentClient] = [];
+                    $data[$currentClient] = [
+                        'Client' => $currentClient
+                    ];
                 }
             } else {
                 if (!is_null($currentClient)) {
@@ -80,13 +82,17 @@ class ParseExcel extends Command
             }
         }
 
-        $headings = array_merge(['Client'], self::FIELDS);
-        $print = [];
-        foreach ($data as $client => $row) {
-            $print[] = array_merge([$client], $row);
-        }
+        $exportedFileName =Storage::disk('public')->path("result-" . date("Y-m-d-H-i-s") . ".xlsx");
+        (new FastExcel($data))->export($exportedFileName, function ($datum) {
+            $result = [
+                'Client' => $datum['Client']
+            ];
 
-        $this->table($headings, $print);
+            foreach (self::FIELDS as $field) {
+                $result[$field] = $datum[$field] ?? 0;
+            }
+            return $result;
+        });
 
         return 0;
     }
