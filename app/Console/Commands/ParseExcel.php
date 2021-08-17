@@ -2,6 +2,12 @@
 
 namespace App\Console\Commands;
 
+use Box\Spout\Common\Exception\InvalidArgumentException;
+use Box\Spout\Common\Exception\IOException;
+use Box\Spout\Common\Exception\UnsupportedTypeException;
+use Box\Spout\Reader\Exception\ReaderNotOpenedException;
+use Box\Spout\Writer\Common\Creator\Style\StyleBuilder;
+use Box\Spout\Writer\Exception\WriterNotOpenedException;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\Storage;
@@ -46,9 +52,13 @@ class ParseExcel extends Command
      * Execute the console command.
      *
      * @return int
-     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws InvalidArgumentException
+     * @throws UnsupportedTypeException
+     * @throws ReaderNotOpenedException
+     * @throws WriterNotOpenedException
      */
-    public function handle()
+    public function handle(): int
     {
         $path = Storage::disk('public')->path($this->fileName);
         $data = [];
@@ -71,7 +81,9 @@ class ParseExcel extends Command
                     ];
                 }
             } else {
+                // if no client yet selected
                 if (!is_null($currentClient)) {
+                    // if charge value already exists, increment it. otherwise, just create new one
                     $chargeExists = isset($data[$currentClient][$charge]);
                     if ($chargeExists) {
                         $data[$currentClient][$charge] += $value;
@@ -82,8 +94,12 @@ class ParseExcel extends Command
             }
         }
 
+        $headerStyle = (new StyleBuilder())->setFontBold()->setFontColor('0000ff')->build();
+
         $exportedFileName =Storage::disk('public')->path("result-" . date("Y-m-d-H-i-s") . ".xlsx");
-        (new FastExcel($data))->export($exportedFileName, function ($datum) {
+        (new FastExcel($data))
+            ->headerStyle($headerStyle)
+            ->export($exportedFileName, function ($datum) {
             $result = [
                 'Client' => $datum['Client']
             ];
